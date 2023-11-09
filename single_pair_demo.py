@@ -11,9 +11,10 @@ def infer():
     # The default config uses dual-softmax.
     # The outdoor and indoor models share the same config.
     # You can change the default values like thr and coarse_match_type.
-    matcher = LoFTR(config=default_cfg)
-    matcher.set_train(False)
-    # matcher.load_state_dict(torch.load("weights/outdoor_ds.ckpt")['state_dict'])
+    model = LoFTR(config=default_cfg)
+    model.set_train(False)
+    ckpt_path = "./models/ms-outdoor_ds.ckpt"
+    ms.load_checkpoint(ckpt_path, model)
 
     # Load example images
     img0_pth = "assets/phototourism_sample_images/united_states_capitol_26757027_6717084061.jpg"
@@ -28,7 +29,7 @@ def infer():
     img1 = ms.Tensor(img1_raw)[None][None] / 255.
 
     # Inference with LoFTR and get prediction
-    match_kpts_f0, match_kpts_f1, match_conf, match_masks = matcher(img0, img1)
+    match_kpts_f0, match_kpts_f1, match_conf, match_masks = model(img0, img1)
     match_kpts_f0 = match_kpts_f0.squeeze(0).asnumpy()  # (num_max_match, 2)
     match_kpts_f1 = match_kpts_f1.squeeze(0).asnumpy()
     match_conf = match_conf.squeeze(0).asnumpy()  # (num_max_match,)
