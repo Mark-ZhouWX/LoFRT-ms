@@ -89,7 +89,7 @@ class LoFTR(nn.Cell):
         feat_f1_unfold = feat_f1_unfold.reshape(bs * num_coarse_match, ww, c)
         feat_f0_unfold, feat_f1_unfold = self.loftr_fine(feat_f0_unfold, feat_f1_unfold)
         feat_f0_unfold = feat_f0_unfold.reshape(bs, num_coarse_match, ww, c)
-        feat_f1_unfold = feat_f0_unfold.reshape(bs, num_coarse_match, ww, c)
+        feat_f1_unfold = feat_f1_unfold.reshape(bs, num_coarse_match, ww, c)
         return feat_f0_unfold, feat_f1_unfold
 
 

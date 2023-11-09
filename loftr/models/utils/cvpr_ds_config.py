@@ -32,6 +32,7 @@ _CN.MATCH_COARSE = CN()
 _CN.MATCH_COARSE.THR = 0.2
 _CN.MATCH_COARSE.BORDER_RM = 2
 _CN.MATCH_COARSE.MATCH_TYPE = 'dual_softmax'  # options: ['dual_softmax, 'sinkhorn']
+# _CN.MATCH_COARSE.NUM_MAX_MATCH = 100  # number of max matching point， default to be the total number of pixels
 _CN.MATCH_COARSE.DSMAX_TEMPERATURE = 0.1
 _CN.MATCH_COARSE.SKH_ITERS = 3
 _CN.MATCH_COARSE.SKH_INIT_BIN_SCORE = 1.0

@@ -8,7 +8,7 @@ from mindspore import nn, ops
 
 
 def elu_feature_map(x):
-    return nn.ELU()(x) + 1
+    return ops.elu(x) + 1
 
 
 class LinearAttention(nn.Cell):
@@ -33,13 +33,13 @@ class LinearAttention(nn.Cell):
 
         # set padded position to zero
         if q_mask is not None:
-            Q = Q * q_mask[:, :, None, None]
+            Q = Q * q_mask[:, :, None, None].astype(Q.dtype)
         if kv_mask is not None:
-            K = K * kv_mask[:, :, None, None]
-            values = values * kv_mask[:, :, None, None]
+            K = K * kv_mask[:, :, None, None].astype(Q.dtype)
+            values = values * kv_mask[:, :, None, None].astype(Q.dtype)
 
         v_length = values.shape[1]
-        values = values / v_length  # prevent fp16 overflow
+        values = values / v_length  # scale up to prevent fp16 overflow
         # KV = torch.einsum("nshd,nshv->nhdv", K, values)  # (S,D)' @ S,V
         # (bs, s, num_head, head_dim, 1) * (bs, s, num_head, 1, head_dim) -> (bs, s, num_head, head_dim, head_dim)
         # sum 1 -> (bs, num_head, head_dim, head_dim)
@@ -52,6 +52,7 @@ class LinearAttention(nn.Cell):
         # (bs, l, num_head, head_dim, 1) * (bs, 1, num_head, head_dim, head_dim) * (bs, l, num_head, 1, 1)
         # -> (bs, l, num_head, head_dim, head_dim) sum3 -> (bs, l, num_head, head_dim)
         queried_values = (Q.expand_dims(-1) * KV.expand_dims(1) * Z.expand_dims(-1).expand_dims(-1)).sum(3)
+        queried_values = queried_values * v_length  # unscale
         return queried_values
 
 

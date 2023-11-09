@@ -135,8 +135,8 @@ class CoarseMatching(nn.Cell):
         # 3. mutual nearest
         mask = mask.astype(ms.int32)
         mask = mask \
-            * (conf_matrix == conf_matrix.max(axis=2, keepdims=True)[0]).astype(ms.int32) \
-            * (conf_matrix == conf_matrix.max(axis=1, keepdims=True)[0]).astype(ms.int32)
+            * (conf_matrix == ops.max(conf_matrix, axis=2, keepdims=True)[0]).astype(ms.int32) \
+            * (conf_matrix == ops.max(conf_matrix, axis=1, keepdims=True)[0]).astype(ms.int32)
 
         # 4. find all valid coarse matches, Note that this only works when at most one `True` in each row
         mask_v, colum_ids = mask.max(2, return_indices=True)  # (bs, l)

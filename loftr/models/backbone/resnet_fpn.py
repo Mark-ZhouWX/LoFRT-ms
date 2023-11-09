@@ -71,14 +71,14 @@ class ResNetFPN_8_2(nn.Cell):
         self.layer2_outconv2 = nn.SequentialCell(
             conv3x3(block_dims[2], block_dims[2]),
             nn.BatchNorm2d(block_dims[2]),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(0.01),
             conv3x3(block_dims[2], block_dims[1]),
         )
         self.layer1_outconv = conv1x1(block_dims[0], block_dims[1])
         self.layer1_outconv2 = nn.SequentialCell(
             conv3x3(block_dims[1], block_dims[1]),
             nn.BatchNorm2d(block_dims[1]),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(0.01),
             conv3x3(block_dims[1], block_dims[0]),
         )
 
@@ -157,7 +157,7 @@ class ResNetFPN_16_4(nn.Cell):
         self.layer3_outconv2 = nn.SequentialCell(
             conv3x3(block_dims[3], block_dims[3]),
             nn.BatchNorm2d(block_dims[3]),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(0.01),
             conv3x3(block_dims[3], block_dims[2]),
         )
 
@@ -165,7 +165,7 @@ class ResNetFPN_16_4(nn.Cell):
         self.layer2_outconv2 = nn.SequentialCell(
             conv3x3(block_dims[2], block_dims[2]),
             nn.BatchNorm2d(block_dims[2]),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(0.01),
             conv3x3(block_dims[2], block_dims[1]),
         )
 
