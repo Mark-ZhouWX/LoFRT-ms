@@ -21,8 +21,9 @@ def create_meshgrid(
     Return:
         torch.Tensor: returns a grid tensor with shape :math:`(1, H, W, 2)`.
     """
-    xs = ops.linspace(ms.Tensor(0, dtype), ms.Tensor(width - 1, dtype), ms.Tensor(width, ms.int32))
-    ys = ops.linspace(ms.Tensor(0, dtype), ms.Tensor(height - 1, dtype), ms.Tensor(height, ms.int32))
+    # linspace only support fp32 and fp64
+    xs = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(width - 1, ms.float32), ms.Tensor(width, ms.int32)).astype(dtype)
+    ys = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(height - 1, ms.float32), ms.Tensor(height, ms.int32)).astype(dtype)
 
     if normalized_coordinates:
         xs = (xs / (width - 1) - 0.5) * 2
@@ -67,17 +68,16 @@ def spatial_expectation2d(
 
     batch_size, channels = input.shape[:2]
 
-    pos_x: ms.Tensor = grid[..., 0].reshape(-1)
-    pos_y: ms.Tensor = grid[..., 1].reshape(-1)
+    pos_x = grid[..., 0].reshape(-1)
+    pos_y = grid[..., 1].reshape(-1)
 
-    input_flat: ms.Tensor = input.view(batch_size, channels, -1)
+    input_flat = input.view(batch_size, channels, -1)
 
     # Compute the expectation of the coordinates.
-    expected_x: ms.Tensor = ops.sum(pos_x * input_flat, -1, keepdim=True)
-    expected_y: ms.Tensor = ops.sum(pos_y * input_flat, -1, keepdim=True)
+    expected_x = ops.sum(pos_x * input_flat, -1, keepdim=True)
+    expected_y = ops.sum(pos_y * input_flat, -1, keepdim=True)
 
-
-    output: ms.Tensor = ops.cat([expected_x, expected_y], -1)
+    output = ops.cat([expected_x, expected_y], -1)
 
     return output.view(batch_size, channels, 2)  # (bs, c, 2)
 

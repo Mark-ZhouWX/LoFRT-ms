@@ -41,19 +41,6 @@ def mask_border_with_padding(m, bd, v, p_m0, p_m1):
         m[b_idx, :, :, :, w1 - bd:] = v
 
 
-def compute_max_candidates(p_m0, p_m1):
-    """Compute the max candidates of all pairs within a batch
-    
-    Args:
-        p_m0, p_m1 (torch.Tensor): padded masks
-    """
-    h0s, w0s = p_m0.sum(1).max(-1)[0], p_m0.sum(-1).max(-1)[0]
-    h1s, w1s = p_m1.sum(1).max(-1)[0], p_m1.sum(-1).max(-1)[0]
-    max_cand = torch.sum(
-        torch.min(torch.stack([h0s * w0s, h1s * w1s], -1), -1)[0])
-    return max_cand
-
-
 class CoarseMatching(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -161,42 +148,8 @@ class CoarseMatching(nn.Cell):
         # 4. Random sampling of training samples for fine-level LoFTR
         # (optional) pad samples with gt coarse-level matches
         if self.training:
-            # NOTE:
-            # The sampling is performed across all pairs in a batch without manually balancing
-            # #samples for fine-level increases w.r.t. batch_size
-            if 'mask0' not in data:
-                num_candidates_max = mask.size(0) * max(
-                    mask.size(1), mask.size(2))
-            else:
-                num_candidates_max = compute_max_candidates(
-                    data['mask0'], data['mask1'])
-            num_matches_train = int(num_candidates_max *
-                                    self.train_coarse_percent)
-            num_matches_pred = len(b_ids)
-            assert self.train_pad_num_gt_min < num_matches_train, "min-num-gt-pad should be less than num-train-matches"
-
-            # pred_indices is to select from prediction
-            if num_matches_pred <= num_matches_train - self.train_pad_num_gt_min:
-                pred_indices = torch.arange(num_matches_pred, device=_device)
-            else:
-                pred_indices = torch.randint(
-                    num_matches_pred,
-                    (num_matches_train - self.train_pad_num_gt_min, ),
-                    device=_device)
-
-            # gt_pad_indices is to select from gt padding. e.g. max(3787-4800, 200)
-            gt_pad_indices = torch.randint(
-                    len(data['spv_b_ids']),
-                    (max(num_matches_train - num_matches_pred,
-                        self.train_pad_num_gt_min), ),
-                    device=_device)
-            mconf_gt = torch.zeros(len(data['spv_b_ids']), device=_device)  # set conf of gt paddings to all zero
-
-            b_ids, i_ids, j_ids, mconf = map(
-                lambda x, y: torch.cat([x[pred_indices], y[gt_pad_indices]],
-                                       dim=0),
-                *zip([b_ids, data['spv_b_ids']], [i_ids, data['spv_i_ids']],
-                     [j_ids, data['spv_j_ids']], [mconf, mconf_gt]))
+            # TODO add logic here
+            pass
 
         # 4. Update with matches in original image resolution
         # scale = data['hw0_i'][0] / data['hw0_c'][0]

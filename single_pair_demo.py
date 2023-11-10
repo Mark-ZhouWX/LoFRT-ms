@@ -1,3 +1,5 @@
+import argparse
+
 import mindspore as ms
 import cv2
 import matplotlib.cm as cm
@@ -6,8 +8,8 @@ from loftr.utils.plotting import make_matching_figure
 
 from loftr.models import LoFTR, default_cfg
 
-def infer():
-    ms.context.set_context(mode=1, device_target='GPU', pynative_synchronize=True)
+def infer(args):
+    ms.context.set_context(mode=args.mode, device_target=args.device, pynative_synchronize=True)
     # The default config uses dual-softmax.
     # The outdoor and indoor models share the same config.
     # You can change the default values like thr and coarse_match_type.
@@ -16,10 +18,12 @@ def infer():
     ckpt_path = "./models/ms-outdoor_ds.ckpt"
     ms.load_checkpoint(ckpt_path, model)
 
+    ms.amp.auto_mixed_precision(network=model, amp_level=args.amp_level)
+
     # Load example images
-    img0_pth = "assets/phototourism_sample_images/united_states_capitol_26757027_6717084061.jpg"
-    img1_pth = "assets/phototourism_sample_images/united_states_capitol_98169888_3347710852.jpg"
-    out_path = "assets/phototourism_sample_images/paired-united_states_capitol_1.jpg"
+    img0_pth = args.image0
+    img1_pth = args.image1
+    out_path = args.out_path
     img0_raw = cv2.imread(img0_pth, cv2.IMREAD_GRAYSCALE)
     img1_raw = cv2.imread(img1_pth, cv2.IMREAD_GRAYSCALE)
     img0_raw = cv2.resize(img0_raw, (img0_raw.shape[1]//8*8, img0_raw.shape[0]//8*8))  # input size shuold be divisible by 8
@@ -52,4 +56,51 @@ def infer():
 
 
 if __name__ == '__main__':
-    infer()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Runs loftr inference demo on a image"
+        )
+    )
+
+    parser.add_argument(
+        "--model-path",
+        type=str,
+        default="./models/ms-outdoor_ds.ckpt"
+    )
+
+    parser.add_argument(
+        "--image0",
+        type=str,
+        default="assets/phototourism_sample_images/united_states_capitol_26757027_6717084061.jpg"
+    )
+
+    parser.add_argument(
+        "--image1",
+        type=str,
+        default="assets/phototourism_sample_images/united_states_capitol_98169888_3347710852.jpg"
+    )
+
+    parser.add_argument(
+        "--out-path",
+        type=str,
+        default="assets/phototourism_sample_images/paired-united_states_capitol_1.jpg"
+    )
+
+
+    parser.add_argument("--device", type=str, default="GPU", help="The device to run generation on.")
+
+    parser.add_argument("--mode", type=int, default=1, help="MindSpore context mode. 0 for graph, 1 for pynative.")
+
+    parser.add_argument("--amp_level", type=str, default="O0", help="auto mixed precision level O0, O2.")
+
+    parser.add_argument(
+        "--enable-plt-visual",
+        action="store_true",
+        help=(
+            "Button to enable matplot visualization."
+        ),
+    )
+
+    o_args = parser.parse_args()
+    print(o_args)
+    infer(o_args)

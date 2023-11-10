@@ -58,6 +58,7 @@ def make_matching_figure(
         fontsize=15, va='top', ha='left', color=txt_color)
 
     # save  figure
+    print(f'save paired image at: {path}')
     plt.savefig(str(path), bbox_inches='tight', pad_inches=0)
     plt.show()
     plt.close()
