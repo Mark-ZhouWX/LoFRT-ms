@@ -87,7 +87,7 @@ if __name__ == '__main__':
     )
 
 
-    parser.add_argument("--device", type=str, default="GPU", help="The device to run generation on.")
+    parser.add_argument("--device", type=str, default="Ascend", help="The device to run generation on.")
 
     parser.add_argument("--mode", type=int, default=1, help="MindSpore context mode. 0 for graph, 1 for pynative.")
 

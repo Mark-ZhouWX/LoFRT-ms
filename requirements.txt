@@ -1,0 +1,4 @@
+yacs>=0.1.8
+opencv_python
+matplotlib
+tqdm
