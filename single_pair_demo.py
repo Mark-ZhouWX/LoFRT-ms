@@ -1,4 +1,5 @@
 import argparse
+from pprint import pprint
 
 import mindspore as ms
 import cv2
@@ -7,52 +8,60 @@ from loftr.utils.plotting import make_matching_figure
 
 
 from loftr.models import LoFTR, default_cfg
+from loftr.utils.timer import Timer
+
 
 def infer(args):
     ms.context.set_context(mode=args.mode, device_target=args.device, pynative_synchronize=True)
     # The default config uses dual-softmax.
     # The outdoor and indoor models share the same config.
     # You can change the default values like thr and coarse_match_type.
-    model = LoFTR(config=default_cfg)
-    model.set_train(False)
-    ckpt_path = "./models/ms-outdoor_ds.ckpt"
-    ms.load_checkpoint(ckpt_path, model)
+    with Timer('total'):
+        with Timer('build net and load weight'):
+            model = LoFTR(config=default_cfg)
+            model.set_train(False)
+            ckpt_path = "./models/ms-outdoor_ds.ckpt"
+            ms.load_checkpoint(ckpt_path, model)
 
-    ms.amp.auto_mixed_precision(network=model, amp_level=args.amp_level)
+        ms.amp.auto_mixed_precision(network=model, amp_level=args.amp_level)
 
-    # Load example images
-    img0_pth = args.image0
-    img1_pth = args.image1
-    out_path = args.out_path
-    img0_raw = cv2.imread(img0_pth, cv2.IMREAD_GRAYSCALE)
-    img1_raw = cv2.imread(img1_pth, cv2.IMREAD_GRAYSCALE)
-    img0_raw = cv2.resize(img0_raw, (img0_raw.shape[1]//8*8, img0_raw.shape[0]//8*8))  # input size shuold be divisible by 8
-    img1_raw = cv2.resize(img1_raw, (img1_raw.shape[1]//8*8, img1_raw.shape[0]//8*8))
+        with Timer("preprocess"):
+            # Load example images
+            img0_pth = args.image0
+            img1_pth = args.image1
+            out_path = args.out_path
+            img0_raw = cv2.imread(img0_pth, cv2.IMREAD_GRAYSCALE)
+            img1_raw = cv2.imread(img1_pth, cv2.IMREAD_GRAYSCALE)
+            img0_raw = cv2.resize(img0_raw, (img0_raw.shape[1]//8*8, img0_raw.shape[0]//8*8))  # input size shuold be divisible by 8
+            img1_raw = cv2.resize(img1_raw, (img1_raw.shape[1]//8*8, img1_raw.shape[0]//8*8))
 
-    img0 = ms.Tensor(img0_raw)[None][None] / 255.
-    img1 = ms.Tensor(img1_raw)[None][None] / 255.
+            img0 = ms.Tensor(img0_raw)[None][None] / 255.
+            img1 = ms.Tensor(img1_raw)[None][None] / 255.
 
-    # Inference with LoFTR and get prediction
-    match_kpts_f0, match_kpts_f1, match_conf, match_masks = model(img0, img1)
-    match_kpts_f0 = match_kpts_f0.squeeze(0).asnumpy()  # (num_max_match, 2)
-    match_kpts_f1 = match_kpts_f1.squeeze(0).asnumpy()
-    match_conf = match_conf.squeeze(0).asnumpy()  # (num_max_match,)
-    match_masks = match_masks.squeeze(0).asnumpy()  # (num_max_match,)
+        with Timer("inference"):
+            # Inference with LoFTR and get prediction
+            match_kpts_f0, match_kpts_f1, match_conf, match_masks = model(img0, img1)
+        with Timer("from device to host"):
+            match_kpts_f0 = match_kpts_f0.squeeze(0).asnumpy()  # (num_max_match, 2)
+            match_kpts_f1 = match_kpts_f1.squeeze(0).asnumpy()
+            match_conf = match_conf.squeeze(0).asnumpy()  # (num_max_match,)
+            match_masks = match_masks.squeeze(0).asnumpy()  # (num_max_match,)
 
-    num_valid_match = match_masks.sum()
-    match_kpts_f0 = match_kpts_f0[:num_valid_match]
-    match_kpts_f1 = match_kpts_f1[:num_valid_match]
-    match_conf = match_conf[:num_valid_match]
-    match_masks = match_masks[:num_valid_match]
+        num_valid_match = match_masks.sum()
+        match_kpts_f0 = match_kpts_f0[:num_valid_match]
+        match_kpts_f1 = match_kpts_f1[:num_valid_match]
+        match_conf = match_conf[:num_valid_match]
+        match_masks = match_masks[:num_valid_match]
 
-    # Draw
-    color = cm.jet(match_conf)
-    text = [
-        'LoFTR',
-        'Matches: {}'.format(len(match_kpts_f0)),
-    ]
+    with Timer("draw and save"):
+        # Draw
+        color = cm.jet(match_conf)
+        text = [
+            'LoFTR',
+            'Matches: {}'.format(len(match_kpts_f0)),
+        ]
 
-    make_matching_figure(img0_raw, img1_raw, match_kpts_f0, match_kpts_f1, color, text=text, path=out_path)
+        make_matching_figure(img0_raw, img1_raw, match_kpts_f0, match_kpts_f1, color, text=text, path=out_path)
 
 
 if __name__ == '__main__':
@@ -102,5 +111,5 @@ if __name__ == '__main__':
     )
 
     o_args = parser.parse_args()
-    print(o_args)
+    pprint(vars(o_args))
     infer(o_args)
