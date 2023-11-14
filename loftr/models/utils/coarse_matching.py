@@ -62,14 +62,17 @@ class CoarseMatching(nn.Cell):
         else:
             raise NotImplementedError()
 
-    def construct(self, feat_c0, feat_c1, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1):
+    def construct(self, feat_c0, feat_c1, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1, mask_c0_margin, mask_c1_margin):
         """
         Args:
             feat0 (ms.Tensor): [N, L, C]
             feat1 (ms.Tensor): [N, S, C]
             data (dict)
-            mask_c0 (ms.Tensor): [N, L] (optional), 0 for pad area
-            mask_c1 (ms.Tensor): [N, S] (optional)
+            mask_i0_flat (ms.Tensor): [N, L] (optional), 0 for pad area
+            mask_i1_flat (ms.Tensor): [N, S] (optional)
+            mask_c0_margin (ms.Tensor): [N, h0, w0], compared to mask_i0_flat, only mask the margin with 0, this is a
+                                       hack implementation of 'mask_border_with_padding'
+            mask_c1_margin: see mask_c0_margin
         Update:
             data (dict): {
                 'b_ids' (torch.Tensor): [M'],
@@ -97,7 +100,7 @@ class CoarseMatching(nn.Cell):
 
         # predict coarse matches from conf_matrix
         # TODO check no grad ?equals to stop_gradient
-        coarse_matches = self.get_coarse_match(conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1)
+        coarse_matches = self.get_coarse_match(conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0_margin, mask_c1_margin)
         return coarse_matches
 
     def get_coarse_match(self, conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1):
@@ -114,9 +117,11 @@ class CoarseMatching(nn.Cell):
 
         # 2. safe margin
         mask = mask.view(bs, hw_c0[0], hw_c0[1], hw_c1[0], hw_c1[1])
-        mask_border_with_padding(mask, self.border_rm, False,
-                                 mask_c0.view(bs, hw_c0[0], hw_c0[1]),
-                                 mask_c1.view(bs, hw_c1[0], hw_c1[1])) # mask_c0, 0 for pad area
+        # mask_border_with_padding(mask, self.border_rm, False,
+        #                          mask_c0.view(bs, hw_c0[0], hw_c0[1]),
+        #                          mask_c1.view(bs, hw_c1[0], hw_c1[1])) # mask_c0, 0 for pad area
+        mask_border = ops.logical_and(mask_c0[:, :, :, None, None], mask_c1[:, None, None, :, :])
+        mask = ops.logical_and(mask, mask_border)
         mask = mask.view(bs, l, s)
 
         # 3. mutual nearest

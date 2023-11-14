@@ -24,14 +24,17 @@ class LoFTR(nn.Cell):
         self.loftr_fine = LocalFeatureTransformer(config["fine"])
         self.fine_matching = FineMatching()
 
-    def construct(self, img0, img1, mask_i0=None, mask_i1=None):
+    def construct(self, img0, img1, mask_c0, mask_c1, mask_c0_margin=None, mask_c1_margin=None):
         """ 
         forward pass
         Args:
-            image0: (torch.Tensor): (N, 1, H, W)
-            image1: (torch.Tensor): (N, 1, H, W)
-            mask0: (torch.Tensor): (N, H, W) '0' indicates a padded position
-            mask1: (torch.Tensor): (N, H, W)
+            image0: (ms.Tensor): (bs, 1, H, W)
+            image1: (ms.Tensor): (bs, 1, H, W)
+            mask_c0: (ms.Tensor): (bs, H, W) '0' indicates a padded position
+            mask_c1: (ms.Tensor): (bs, H, W)
+            mask_c0_margin: (ms.Tensor): [bs, h, w], compared to mask_c0, add mask on margin area with 0, this is a
+                                       hack implementation of 'mask_border_with_padding'
+            mask_c0_margin:  (ms.Tensor): [bs, h, w]
 
         """
         bs = img0.shape[0]
@@ -54,17 +57,18 @@ class LoFTR(nn.Cell):
         feat_c0 = self.pos_encoding(feat_c0).flatten(start_dim=-2).swapaxes(1, 2)  # (bs, c, h, w) -> (bs, hw, c)
         feat_c1 = self.pos_encoding(feat_c1).flatten(start_dim=-2).swapaxes(1, 2)
 
-        if mask_i0 is not None:  # padding mask, 0 for pad area
-            mask_c0, mask_c1 = mask_i0.flatten(-2), mask_i1.flatten(-2)  # (bs, c, hw)
-        else:
-            mask_c0, mask_c1 = ops.ones(feat_c0.shape[:2], dtype=ms.bool_), ops.ones(feat_c1.shape[:2], dtype=ms.bool_)
-        feat_c0, feat_c1 = self.loftr_coarse(feat_c0, feat_c1, mask_c0, mask_c1)
+        # padding mask, 0 for pad area
+        mask_c0_flat, mask_c1_flat = mask_c0.flatten(start_dim=-2), mask_c1.flatten(start_dim=-2)  # (bs, c, hw)
+
+        feat_c0, feat_c1 = self.loftr_coarse(feat_c0, feat_c1, mask_c0_flat, mask_c1_flat)
 
         # Step3: match coarse-level
         match_ids, match_masks, match_conf, match_kpts_c0, match_kpts_c1 = self.coarse_matching(feat_c0, feat_c1,
                                                         hw_c0=hw_c0, hw_c1=hw_c1,
                                                         hw_i0=hw_i0, hw_i1=hw_i1,
-                                                        mask_c0=mask_c0, mask_c1=mask_c1)
+                                                        mask_c0=mask_c0_flat,
+                                                        mask_c1=mask_c1_flat,
+                                                        mask_c0_margin=mask_c0_margin, mask_c1_margin=mask_c1_margin)
 
         # Step4: crop small patch of fine-feature-map centered at coarse feature map points
         feat_f0_unfold, feat_f1_unfold = self.fine_preprocess(feat_f0, feat_f1, feat_c0, feat_c1, hw_c0, hw_f0, match_ids)
