@@ -22,8 +22,10 @@ def create_meshgrid(
         torch.Tensor: returns a grid tensor with shape :math:`(1, H, W, 2)`.
     """
     # linspace only support fp32 and fp64
-    xs = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(width - 1, ms.float32), ms.Tensor(width, ms.int32)).astype(dtype)
-    ys = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(height - 1, ms.float32), ms.Tensor(height, ms.int32)).astype(dtype)
+    # xs = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(width - 1, ms.float32), ms.Tensor(width, ms.int32)).astype(dtype)
+    # ys = ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(height - 1, ms.float32), ms.Tensor(height, ms.int32)).astype(dtype)
+    xs = ops.arange(width, dtype=dtype)
+    ys = ops.arange(height, dtype=dtype)
 
     if normalized_coordinates:
         xs = (xs / (width - 1) - 0.5) * 2

@@ -45,9 +45,21 @@ class LinearAttention(nn.Cell):
         # sum 1 -> (bs, num_head, head_dim, head_dim)
         KV = (K.expand_dims(-1) * values.expand_dims(3)).sum(1)
 
-        # (bs, l, num_head, head_dim) * (bs, 1, num_head, head_dim, head_dim) -> (bs, l, num_head, head_dim)
+        # (bs, l, num_head, head_dim) * (bs, 1, num_head, head_dim) -> (bs, l, num_head, head_dim)
         # sum 3 -> (bs, l, num_head)
-        Z = ops.reciprocal((Q * K.sum(1).expand_dims(1)).sum(3) + self.eps)
+
+        # if q_mask is not None:  # to prevent overflow when float16
+        #     recip_z = (Q * K.sum(1).expand_dims(1)).sum(3) + ops.logical_not(q_mask[:, :, None]).astype(Q.dtype)
+        #     Z = ops.reciprocal(recip_z)
+        #     Z = Z - ops.logical_not(q_mask[:, :, None]).astype(Q.dtype)
+        # else:
+        #     recip_z = (Q * K.sum(1).expand_dims(1)).sum(3)
+        #     Z = ops.reciprocal(recip_z)
+
+        if q_mask is not None:  # to prevent 0-division
+            Z = ops.where(q_mask[:, :, None], ops.reciprocal((Q * K.sum(1).expand_dims(1)).sum(3)+ self.eps), q_mask[:, :, None].astype(Q.dtype))
+        else:
+            Z = ops.reciprocal((Q * K.sum(1).expand_dims(1)).sum(3) + self.eps)
 
         # (bs, l, num_head, head_dim, 1) * (bs, 1, num_head, head_dim, head_dim) * (bs, l, num_head, 1, 1)
         # -> (bs, l, num_head, head_dim, head_dim) sum3 -> (bs, l, num_head, head_dim)
