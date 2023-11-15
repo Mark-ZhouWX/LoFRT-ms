@@ -76,6 +76,10 @@ def infer(args):
         with Timer("inference"):
             # Inference with LoFTR and get prediction
             match_kpts_f0, match_kpts_f1, match_conf, match_masks = model(img0, img1, mask_c0, mask_c1)
+        with Timer("second inference"):
+            # Inference with LoFTR and get prediction
+            match_kpts_f0, match_kpts_f1, match_conf, match_masks = model(img0, img1, mask_c0, mask_c1)
+
         with Timer("from device to host"):
             match_kpts_f0 = match_kpts_f0.squeeze(0).asnumpy()  # (num_max_match, 2)
             match_kpts_f1 = match_kpts_f1.squeeze(0).asnumpy()
