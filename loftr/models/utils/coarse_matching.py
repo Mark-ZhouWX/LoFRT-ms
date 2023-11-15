@@ -23,7 +23,7 @@ def mask_border(m, b: int, v):
     m[:, :, :, :, -b:] = v
 
 
-def mask_border_with_padding(m, bd, v, p_m0, p_m1):
+def back_mask_border_with_padding(m, bd, v, p_m0, p_m1):
     if bd <= 0:
         return
 
@@ -39,6 +39,34 @@ def mask_border_with_padding(m, bd, v, p_m0, p_m1):
         m[b_idx, :, w0 - bd:] = v
         m[b_idx, :, :, h1 - bd:] = v
         m[b_idx, :, :, :, w1 - bd:] = v
+
+
+def mask_border_with_padding(m, bd, p_m0, p_m1):
+    if bd <= 0:
+        return
+
+    p_m0 = p_m0.astype(ms.int32)  # (bs, h, w)
+    p_m1 = p_m1.astype(ms.int32)
+    bs = p_m0.shape[0]
+
+    # (bs, 1, 1)  (bs, 1, 1)
+    w0s, h0s  = p_m0[:, 0].sum().view(bs, 1, 1), p_m0[:, :, 0].sum().view(bs, 1, 1)
+    w1s, h1s = p_m1[:, 0].sum().view(bs, 1, 1), p_m1[:, :, 0].sum().view(bs, 1, 1)
+
+    h0_mask = ops.logical_and(ops.cumsum(p_m0, axis=1) <= h0s - bd, ops.cumsum(p_m0, axis=1) > bd)
+    w0_mask = ops.logical_and(ops.cumsum(p_m0, axis=2) <= w0s - bd, ops.cumsum(p_m0, axis=2) > bd)
+    hw0_mask = ops.logical_and(h0_mask, w0_mask)  # (bs, h0, w0)
+    hw0_mask = ops.logical_and(hw0_mask, p_m0.astype(ms.bool_))
+
+    h1_mask = ops.logical_and(ops.cumsum(p_m1, axis=1) <= h1s - bd, ops.cumsum(p_m1, axis=1) > bd)
+    w1_mask = ops.logical_and(ops.cumsum(p_m1, axis=2) <= w1s - bd, ops.cumsum(p_m1, axis=2) > bd)
+    hw1_mask = ops.logical_and(h1_mask, w1_mask)  # (bs, h1, w1)
+    hw1_mask = ops.logical_and(hw1_mask, p_m1.astype(ms.bool_))
+
+    mask_border = ops.logical_and(hw0_mask[:, :, :, None, None], hw1_mask[:, None, None, :, :])
+    m = ops.logical_and(m, mask_border)
+
+    return m
 
 
 class CoarseMatching(nn.Cell):
@@ -62,7 +90,7 @@ class CoarseMatching(nn.Cell):
         else:
             raise NotImplementedError()
 
-    def construct(self, feat_c0, feat_c1, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1, mask_c0_margin, mask_c1_margin):
+    def construct(self, feat_c0, feat_c1, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1):
         """
         Args:
             feat0 (ms.Tensor): [N, L, C]
@@ -100,7 +128,7 @@ class CoarseMatching(nn.Cell):
 
         # predict coarse matches from conf_matrix
         # TODO check no grad ?equals to stop_gradient
-        coarse_matches = self.get_coarse_match(conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0_margin, mask_c1_margin)
+        coarse_matches = self.get_coarse_match(conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1,)
         return coarse_matches
 
     def get_coarse_match(self, conf_matrix, hw_c0, hw_c1, hw_i0, hw_i1, mask_c0, mask_c1):
@@ -117,11 +145,11 @@ class CoarseMatching(nn.Cell):
 
         # 2. safe margin
         mask = mask.view(bs, hw_c0[0], hw_c0[1], hw_c1[0], hw_c1[1])
-        # mask_border_with_padding(mask, self.border_rm, False,
-        #                          mask_c0.view(bs, hw_c0[0], hw_c0[1]),
-        #                          mask_c1.view(bs, hw_c1[0], hw_c1[1])) # mask_c0, 0 for pad area
-        mask_border = ops.logical_and(mask_c0[:, :, :, None, None], mask_c1[:, None, None, :, :])
-        mask = ops.logical_and(mask, mask_border)
+        mask = mask_border_with_padding(mask, self.border_rm,
+                                 mask_c0.view(bs, hw_c0[0], hw_c0[1]),
+                                 mask_c1.view(bs, hw_c1[0], hw_c1[1])) # mask_c0, 0 for pad area
+        # mask_border = ops.logical_and(mask_c0[:, :, :, None, None], mask_c1[:, None, None, :, :])
+        # mask = ops.logical_and(mask, mask_border)
         mask = mask.view(bs, l, s)
 
         # 3. mutual nearest

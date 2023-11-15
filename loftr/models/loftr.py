@@ -24,17 +24,14 @@ class LoFTR(nn.Cell):
         self.loftr_fine = LocalFeatureTransformer(config["fine"])
         self.fine_matching = FineMatching()
 
-    def construct(self, img0, img1, mask_c0, mask_c1, mask_c0_margin=None, mask_c1_margin=None):
+    def construct(self, img0, img1, mask_c0, mask_c1):
         """ 
         forward pass
         Args:
             image0: (ms.Tensor): (bs, 1, H, W)
             image1: (ms.Tensor): (bs, 1, H, W)
-            mask_c0: (ms.Tensor): (bs, H, W) '0' indicates a padded position
+            mask_c0: (ms.Tensor[bool]): (bs, H, W) False indicates a padded position
             mask_c1: (ms.Tensor): (bs, H, W)
-            mask_c0_margin: (ms.Tensor): [bs, h, w], compared to mask_c0, add mask on margin area with 0, this is a
-                                       hack implementation of 'mask_border_with_padding'
-            mask_c0_margin:  (ms.Tensor): [bs, h, w]
 
         """
         bs = img0.shape[0]
@@ -67,8 +64,7 @@ class LoFTR(nn.Cell):
                                                         hw_c0=hw_c0, hw_c1=hw_c1,
                                                         hw_i0=hw_i0, hw_i1=hw_i1,
                                                         mask_c0=mask_c0_flat,
-                                                        mask_c1=mask_c1_flat,
-                                                        mask_c0_margin=mask_c0_margin, mask_c1_margin=mask_c1_margin)
+                                                        mask_c1=mask_c1_flat)
 
         # Step4: crop small patch of fine-feature-map centered at coarse feature map points
         feat_f0_unfold, feat_f1_unfold = self.fine_preprocess(feat_f0, feat_f1, feat_c0, feat_c1, hw_c0, hw_f0, match_ids)
