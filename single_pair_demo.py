@@ -16,6 +16,7 @@ from loftr.utils.timer import Timer
 def image_pad(img, pad_shape, coarse_scale=8):
     img_shape = img.shape
     # return  img, np.ones([img_shape[0] // coarse_scale, img_shape[1] // coarse_scale], dtype=np.bool_), 1
+    # pad_shape = img_shape  # uncomment this line to disable pad
     img = np.pad(img, ((0, pad_shape[0]-img_shape[0]), (0, pad_shape[1]-img_shape[1])))
 
     coarse_img_h, coarse_img_w = img_shape[0] // coarse_scale, img_shape[1] // coarse_scale
@@ -63,11 +64,11 @@ def infer(args):
             img0_raw = cv2.resize(img0_raw, (img0_raw.shape[1]//16*8, img0_raw.shape[0]//16*8))  # input size shuold be divisible by 8
             img1_raw = cv2.resize(img1_raw, (img1_raw.shape[1]//16*8, img1_raw.shape[0]//16*8))
 
-            img0_raw, mask_c0 = image_pad(img0_raw, (640, 640))
-            img1_raw, mask_c1 = image_pad(img1_raw, (640, 640))
+            img0_pad, mask_c0 = image_pad(img0_raw, (640, 640))
+            img1_pad, mask_c1 = image_pad(img1_raw, (640, 640))
 
-            img0 = ms.Tensor(img0_raw)[None][None] / 255.
-            img1 = ms.Tensor(img1_raw)[None][None] / 255.
+            img0 = ms.Tensor(img0_pad)[None][None] / 255.
+            img1 = ms.Tensor(img1_pad)[None][None] / 255.
 
             mask_c0 = ms.Tensor(mask_c0)[None]
             mask_c1 = ms.Tensor(mask_c1)[None]
